@@ -12,14 +12,15 @@ const (
 )
 
 type Config struct {
-	BaseURL string
-	Token   string
-	SrcDir  string
-	DstDir  string
-	PerPage int
-	Timeout time.Duration
-	DryRun  bool
-	Logger  *Logger
+	BaseURL   string
+	Token     string
+	SrcDir    string
+	DstDir    string
+	Blacklist []string
+	PerPage   int
+	Timeout   time.Duration
+	DryRun    bool
+	Logger    *Logger
 }
 
 func normalizeConfig(cfg Config) (Config, error) {
@@ -47,5 +48,6 @@ func normalizeConfig(cfg Config) (Config, error) {
 	cfg.BaseURL = normalizeBaseURL(cfg.BaseURL)
 	cfg.SrcDir = normalizeOLPath(cfg.SrcDir)
 	cfg.DstDir = normalizeOLPath(cfg.DstDir)
+	cfg.Blacklist = normalizePatterns(cfg.Blacklist)
 	return cfg, nil
 }

@@ -3,6 +3,11 @@
   "token_file": "token.txt",
   "src": "/test/source",
   "dst": "/test/target",
+  "blacklist": [
+    "*.tmp",
+    ".DS_Store",
+    "cache/*"
+  ],
   "log_level": "info",
   "per_page": 0,
   "timeout": "30s",

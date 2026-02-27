@@ -18,6 +18,7 @@ type cliConfig struct {
 	tokenFile   string
 	srcDir      string
 	dstDir      string
+	excludes    []string
 	logLevelStr string
 	logLevel    openlistsync.LogLevel
 	perPage     int
@@ -26,14 +27,15 @@ type cliConfig struct {
 }
 
 type jsonConfig struct {
-	BaseURL   *string `json:"base_url"`
-	TokenFile *string `json:"token_file"`
-	SrcDir    *string `json:"src"`
-	DstDir    *string `json:"dst"`
-	LogLevel  *string `json:"log_level"`
-	PerPage   *int    `json:"per_page"`
-	Timeout   *string `json:"timeout"`
-	DryRun    *bool   `json:"dry_run"`
+	BaseURL   *string   `json:"base_url"`
+	TokenFile *string   `json:"token_file"`
+	SrcDir    *string   `json:"src"`
+	DstDir    *string   `json:"dst"`
+	Blacklist *[]string `json:"blacklist"`
+	LogLevel  *string   `json:"log_level"`
+	PerPage   *int      `json:"per_page"`
+	Timeout   *string   `json:"timeout"`
+	DryRun    *bool     `json:"dry_run"`
 }
 
 func defaultCLIConfig() cliConfig {
@@ -41,7 +43,7 @@ func defaultCLIConfig() cliConfig {
 		configPath:  "config.json",
 		baseURL:     "http://localhost:35244",
 		tokenFile:   "token.txt",
-		logLevelStr: "error",
+		logLevelStr: "info",
 		perPage:     openlistsync.DefaultPerPage,
 		timeout:     30 * time.Second,
 	}
@@ -59,14 +61,15 @@ func main() {
 	}
 
 	runCfg := openlistsync.Config{
-		BaseURL: cfg.baseURL,
-		Token:   token,
-		SrcDir:  cfg.srcDir,
-		DstDir:  cfg.dstDir,
-		PerPage: cfg.perPage,
-		Timeout: cfg.timeout,
-		DryRun:  cfg.dryRun,
-		Logger:  openlistsync.NewLogger(os.Stdout, cfg.logLevel),
+		BaseURL:   cfg.baseURL,
+		Token:     token,
+		SrcDir:    cfg.srcDir,
+		DstDir:    cfg.dstDir,
+		Blacklist: cfg.excludes,
+		PerPage:   cfg.perPage,
+		Timeout:   cfg.timeout,
+		DryRun:    cfg.dryRun,
+		Logger:    openlistsync.NewLogger(os.Stdout, cfg.logLevel),
 	}
 	if err := openlistsync.Run(context.Background(), runCfg); err != nil {
 		exitWithErr(1, err)
@@ -92,6 +95,10 @@ func parseFlags() (cliConfig, error) {
 	flag.StringVar(&cfg.tokenFile, "token-file", cfg.tokenFile, "path to token file")
 	flag.StringVar(&cfg.srcDir, "src", cfg.srcDir, "source directory path in OpenList")
 	flag.StringVar(&cfg.dstDir, "dst", cfg.dstDir, "destination directory path in OpenList")
+	flag.Func("exclude", "blacklist wildcard pattern, repeatable or comma-separated", func(v string) error {
+		cfg.excludes = append(cfg.excludes, splitPatterns(v)...)
+		return nil
+	})
 	flag.StringVar(&cfg.logLevelStr, "log-level", cfg.logLevelStr, "log level: debug, info, error")
 	flag.IntVar(&cfg.perPage, "per-page", cfg.perPage, "list API page size")
 	flag.DurationVar(&cfg.timeout, "timeout", cfg.timeout, "HTTP timeout")
@@ -154,6 +161,18 @@ func hasHelpFlag(args []string) bool {
 	return false
 }
 
+func splitPatterns(v string) []string {
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
 func loadJSONConfig(configPath string, cfg *cliConfig) error {
 	b, err := os.ReadFile(configPath)
 	if err != nil {
@@ -176,6 +195,9 @@ func loadJSONConfig(configPath string, cfg *cliConfig) error {
 	}
 	if jc.DstDir != nil {
 		cfg.dstDir = *jc.DstDir
+	}
+	if jc.Blacklist != nil {
+		cfg.excludes = append([]string(nil), *jc.Blacklist...)
 	}
 	if jc.LogLevel != nil {
 		cfg.logLevelStr = *jc.LogLevel

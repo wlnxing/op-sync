@@ -26,17 +26,24 @@ func Run(ctx context.Context, cfg Config) error {
 	if err != nil {
 		return err
 	}
+	filter, err := newPathFilter(cfg.Blacklist)
+	if err != nil {
+		return err
+	}
 	c := newAPIClient(cfg)
+	if filter.count() > 0 {
+		cfg.Logger.Infof("blacklist enabled with %d pattern(s)", filter.count())
+	}
 
 	cfg.Logger.Infof("scan source: %s", cfg.SrcDir)
-	srcSnap, err := scanTree(ctx, c, cfg.SrcDir)
+	srcSnap, err := scanTree(ctx, c, cfg.SrcDir, filter, cfg.Logger)
 	if err != nil {
 		cfg.Logger.Errorf("scan source failed: %v", err)
 		return fmt.Errorf("scan source failed: %w", err)
 	}
 
 	cfg.Logger.Infof("scan target: %s", cfg.DstDir)
-	dstSnap, err := scanTree(ctx, c, cfg.DstDir)
+	dstSnap, err := scanTree(ctx, c, cfg.DstDir, filter, cfg.Logger)
 	if err != nil {
 		if isNotFoundErr(err) {
 			cfg.Logger.Infof("target dir not found, create: %s", cfg.DstDir)
@@ -123,7 +130,7 @@ func Run(ctx context.Context, cfg Config) error {
 // scanTree 通过 OpenList 的 list API 递归遍历目录，构建：
 // 1) 以相对路径为 key 的文件大小索引
 // 2) 以相对路径为 key 的目录集合
-func scanTree(ctx context.Context, c *apiClient, root string) (*treeSnapshot, error) {
+func scanTree(ctx context.Context, c *apiClient, root string, filter *pathFilter, logger *Logger) (*treeSnapshot, error) {
 	snap := &treeSnapshot{
 		Files: make(map[string]int64),
 		Dirs:  map[string]struct{}{"": {}},
@@ -144,6 +151,10 @@ func scanTree(ctx context.Context, c *apiClient, root string) (*treeSnapshot, er
 			relPath := obj.Name
 			if relDir != "" {
 				relPath = path.Join(relDir, obj.Name)
+			}
+			if filter.match(relPath) {
+				logger.Debugf("skip by blacklist: %s", relPath)
+				continue
 			}
 			if obj.IsDir {
 				snap.Dirs[relPath] = struct{}{}
