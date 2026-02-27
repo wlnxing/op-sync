@@ -1,46 +1,66 @@
 # op-sync
 
-`op-sync` 是一个给 OpenList 用的“文件夹同步小工具”。
+把 OpenList 里的一个目录，同步到另一个目录的命令行工具。
 
-你可以把它理解成：  
-把 A 目录，以文件级别增量同步到 B 目录, 支持黑名单配置。
+先逐个文件比对，再按文件复制，不会直接整目录复制。
 
-## 这个工具适合做什么
+## 同步规则
 
-- 想定时/手动把一个目录同步到另一个目录
-- 不想每次都全部复制
-- 想尽量避免重复任务和无意义覆盖
-- 复制是按“文件”执行的，不是一次性整目录复制
-- 只处理“需要更新”的文件，不会每次全量重传
-- 同名文件时：
-  - 源文件更大：覆盖目标文件
-  - 源文件不更大：跳过
-- 目标目录没有的文件：自动复制过去
-- 目标目录没有的子目录：自动创建
-- 如果 OpenList 里已经有相同复制任务在跑：不重复提交
-- 支持黑名单（通配符）：命中的文件/路径不参与同步
+- 只同步需要更新的文件，不全量重传
+- 目标没有该文件：复制
+- 同名文件且源文件更大：覆盖
+- 同名文件且源文件不更大：跳过
+- 目标缺少子目录：自动创建
+- 如果 OpenList 里已有相同复制任务在进行：跳过
+- 命中黑名单通配符的文件/路径：不参与同步
+
+## 适用场景
+
+- 两个目录做日常增量同步
+- 只想补新文件或覆盖更大的源文件
+- 想排除临时文件、缓存目录等
 
 ## 快速上手
 
-1. 准备 `config.json`（可参考仓库内 `config.example.json`）
-2. 准备 token 文件（可参考 `token.example.txt`）
-3. 运行：
+1. 在 Releases 页面下载与你系统匹配的发布包：  
+   https://github.com/wlnxing/op-sync/releases
+2. 解压发布包并进入解压目录（Linux/macOS 示例）：
 
 ```bash
-go run ./cmd/openlist-sync
+tar -xzf openlist-sync-vX.Y.Z-linux-amd64.tar.gz
+cd openlist-sync-vX.Y.Z-linux-amd64
+```
+
+3. 基于示例文件准备运行配置：
+
+```bash
+cp config.example.json config.json
+cp token.example.txt token.txt
+```
+
+4. 编辑 `config.json`，至少确认以下字段：
+- `base_url`：OpenList 地址
+- `src`：源目录
+- `dst`：目标目录
+
+5. 在 `token.txt` 中填入 OpenList token，然后执行：
+
+```bash
+chmod +x ./openlist-sync
+./openlist-sync
 ```
 
 ## 常用命令
 
 ```bash
 # 使用默认配置（当前目录 config.json）
-go run ./cmd/openlist-sync
+./openlist-sync
 
 # 指定配置文件
-go run ./cmd/openlist-sync --config /path/to/config.json
+./openlist-sync --config /path/to/config.json
 
 # 先预览，不真正复制
-go run ./cmd/openlist-sync --config ./config.json -dry-run -log-level info
+./openlist-sync --config ./config.json -dry-run -log-level info
 ```
 
 ## 配置文件示例
@@ -56,7 +76,7 @@ go run ./cmd/openlist-sync --config ./config.json -dry-run -log-level info
     ".DS_Store",
     "cache/*"
   ],
-  "log_level": "error",
+  "log_level": "info",
   "per_page": 0,
   "timeout": "30s",
   "dry_run": false
