@@ -1,5 +1,9 @@
 # op-sync
 
+[![Release](https://img.shields.io/github/v/release/wlnxing/op-sync?label=release)](https://github.com/wlnxing/op-sync/releases/latest)
+[![Release Build](https://github.com/wlnxing/op-sync/actions/workflows/release.yml/badge.svg)](https://github.com/wlnxing/op-sync/actions/workflows/release.yml)
+[![Go](https://img.shields.io/badge/go-1.22%2B-00ADD8?logo=go)](https://go.dev/)
+
 把 OpenList 里的一个目录，同步到另一个目录的命令行工具。
 
 先逐个文件比对，再按文件复制，不会直接整目录复制。
@@ -22,13 +26,12 @@
 
 ## 快速上手
 
-1. 在 Releases 页面下载与你系统匹配的发布包：  
-   https://github.com/wlnxing/op-sync/releases
-2. 解压发布包并进入解压目录（Linux/macOS 示例）：
+1. 前往 [Releases](https://github.com/wlnxing/op-sync/releases/latest) 下载对应系统的最新包
+2. 解压并进入解压目录（Linux示例）：
 
 ```bash
-tar -xzf openlist-sync-vX.Y.Z-linux-amd64.tar.gz
-cd openlist-sync-vX.Y.Z-linux-amd64
+tar -xzf openlist-sync-linux-amd64.tar.gz
+cd openlist-sync-linux-amd64
 ```
 
 3. 基于示例文件准备运行配置：

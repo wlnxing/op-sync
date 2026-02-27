@@ -23,8 +23,6 @@ jobs:
           cache: false
 
       - name: Build and Package
-        env:
-          VERSION: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           APP_NAME="openlist-sync"
@@ -35,7 +33,7 @@ jobs:
           for target in $TARGETS; do
             GOOS="${target%/*}"
             GOARCH="${target#*/}"
-            PKG_NAME="${APP_NAME}-${VERSION}-${GOOS}-${GOARCH}"
+            PKG_NAME="${APP_NAME}-${GOOS}-${GOARCH}"
 
             mkdir -p "package/${PKG_NAME}"
             CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath -o "package/${PKG_NAME}/${BIN_NAME}" ./cmd/openlist-sync
