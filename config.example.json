@@ -1,0 +1,10 @@
+{
+  "base_url": "http://localhost:35244",
+  "token_file": "token.txt",
+  "src": "/test/source",
+  "dst": "/test/target",
+  "log_level": "info",
+  "per_page": 0,
+  "timeout": "30s",
+  "dry_run": false
+}
