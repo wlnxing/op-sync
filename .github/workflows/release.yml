@@ -1,0 +1,52 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build and Package
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          APP_NAME="openlist-sync"
+          BIN_NAME="${APP_NAME}"
+          TARGETS="darwin/arm64 linux/amd64 linux/arm64"
+
+          mkdir -p dist package
+          for target in $TARGETS; do
+            GOOS="${target%/*}"
+            GOARCH="${target#*/}"
+            PKG_NAME="${APP_NAME}-${VERSION}-${GOOS}-${GOARCH}"
+
+            mkdir -p "package/${PKG_NAME}"
+            CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath -o "package/${PKG_NAME}/${BIN_NAME}" ./cmd/openlist-sync
+
+            cp config.example.json "package/${PKG_NAME}/config.example.json"
+            cp token.example.txt "package/${PKG_NAME}/token.example.txt"
+
+            tar -C package -czf "dist/${PKG_NAME}.tar.gz" "${PKG_NAME}"
+          done
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: dist/*.tar.gz
