@@ -8,6 +8,7 @@
     ".DS_Store",
     "cache/*"
   ],
+  "min_size_diff": 0,
   "log_level": "info",
   "per_page": 0,
   "timeout": "30s",

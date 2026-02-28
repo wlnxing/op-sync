@@ -123,8 +123,6 @@ func (c *apiClient) listAllEntries(ctx context.Context, p string) ([]fsObj, erro
 // {"code":..., "message":..., "data":...}
 // code 非 200 一律按错误处理。
 func (c *apiClient) requestJSON(ctx context.Context, method, apiPath string, payload any, out any) error {
-	c.logger.Debugf("request %s %s", method, apiPath)
-
 	var body io.Reader
 	if payload != nil {
 		b, err := json.Marshal(payload)

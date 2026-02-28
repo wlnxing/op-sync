@@ -34,6 +34,9 @@ func Run(ctx context.Context, cfg Config) error {
 	if filter.count() > 0 {
 		cfg.Logger.Infof("blacklist enabled with %d pattern(s)", filter.count())
 	}
+	if cfg.MinSizeDiff > 0 {
+		cfg.Logger.Infof("min size diff enabled: %d bytes", cfg.MinSizeDiff)
+	}
 
 	cfg.Logger.Infof("scan source: %s", cfg.SrcDir)
 	srcSnap, err := scanTree(ctx, c, cfg.SrcDir, filter, cfg.Logger)
@@ -61,7 +64,7 @@ func Run(ctx context.Context, cfg Config) error {
 		}
 	}
 
-	plan, unchanged := buildPlan(srcSnap.Files, dstSnap.Files)
+	plan, unchanged := buildPlan(srcSnap.Files, dstSnap.Files, cfg.MinSizeDiff)
 	cfg.Logger.Infof("source files: %d, target files: %d", len(srcSnap.Files), len(dstSnap.Files))
 	cfg.Logger.Infof("to copy: %d, unchanged/skipped: %d", len(plan), unchanged)
 
@@ -141,6 +144,7 @@ func scanTree(ctx context.Context, c *apiClient, root string, filter *pathFilter
 		relDir := queue[0]
 		queue = queue[1:]
 		absDir := joinRootWithRel(root, relDir)
+		logger.Debugf("scanning directory: %s", absDir)
 
 		entries, err := c.listAllEntries(ctx, absDir)
 		if err != nil {
@@ -173,7 +177,7 @@ func scanTree(ctx context.Context, c *apiClient, root string, filter *pathFilter
 // - 目标不存在：复制
 // - 同路径且源文件更大：覆盖复制
 // - 其他情况：跳过
-func buildPlan(srcFiles, dstFiles map[string]int64) ([]copyPlanItem, int) {
+func buildPlan(srcFiles, dstFiles map[string]int64, minSizeDiff int64) ([]copyPlanItem, int) {
 	plan := make([]copyPlanItem, 0)
 	unchanged := 0
 
@@ -188,12 +192,13 @@ func buildPlan(srcFiles, dstFiles map[string]int64) ([]copyPlanItem, int) {
 			})
 			continue
 		}
-		if srcSize > dstSize {
+		diff := srcSize - dstSize
+		if diff > 0 && diff >= minSizeDiff {
 			plan = append(plan, copyPlanItem{
 				RelPath: rel,
 				SrcSize: srcSize,
 				DstSize: dstSize,
-				Reason:  "source larger, overwrite",
+				Reason:  fmt.Sprintf("source larger by %d bytes, overwrite", diff),
 			})
 			continue
 		}

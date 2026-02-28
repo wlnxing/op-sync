@@ -12,7 +12,7 @@
 
 - 只同步需要更新的文件，不全量重传
 - 目标没有该文件：复制
-- 同名文件且源文件更大：覆盖
+- 同名文件且源文件更大：当大小差达到阈值时覆盖（`min_size_diff`）
 - 同名文件且源文件不更大：跳过
 - 目标缺少子目录：自动创建
 - 如果 OpenList 里已有相同复制任务在进行：跳过
@@ -79,6 +79,7 @@ chmod +x ./openlist-sync
     ".DS_Store",
     "cache/*"
   ],
+  "min_size_diff": 0,
   "log_level": "info",
   "per_page": 0,
   "timeout": "30s",
@@ -96,6 +97,7 @@ chmod +x ./openlist-sync
 - `-exclude`：黑名单通配符，可重复传，或用逗号分隔
 - `-dry-run`：只看计划，不执行复制
 - `-log-level`：`debug | info | error`，默认 `info`
+- `-min-size-diff`：仅当 `源文件大小-目标文件大小` 大于等于该值时才复制（单位：字节）
 - `-per-page`：列表分页，默认 `0`（让 OpenList 返回目录全部文件）
 - `-timeout`：单次 API 请求超时，默认 `30s`
 

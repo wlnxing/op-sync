@@ -53,18 +53,43 @@ func TestBuildPlan(t *testing.T) {
 		"b.txt": 6,
 	}
 
-	plan, unchanged := buildPlan(src, dst)
+	plan, unchanged := buildPlan(src, dst, 0)
 	if unchanged != 1 {
 		t.Fatalf("unchanged = %d, want 1", unchanged)
 	}
 	if len(plan) != 2 {
 		t.Fatalf("plan length = %d, want 2", len(plan))
 	}
-	if plan[0].RelPath != "a.txt" || plan[0].Reason != "source larger, overwrite" {
+	if plan[0].RelPath != "a.txt" || plan[0].Reason != "source larger by 7 bytes, overwrite" {
 		t.Fatalf("plan[0] = %+v, unexpected", plan[0])
 	}
 	if plan[1].RelPath != "sub/c.txt" || plan[1].Reason != "target missing" {
 		t.Fatalf("plan[1] = %+v, unexpected", plan[1])
+	}
+}
+
+func TestBuildPlanWithMinSizeDiff(t *testing.T) {
+	src := map[string]int64{
+		"a.txt": 10,
+	}
+	dst := map[string]int64{
+		"a.txt": 7,
+	}
+
+	plan, unchanged := buildPlan(src, dst, 4)
+	if unchanged != 1 {
+		t.Fatalf("unchanged = %d, want 1", unchanged)
+	}
+	if len(plan) != 0 {
+		t.Fatalf("plan length = %d, want 0", len(plan))
+	}
+
+	plan, unchanged = buildPlan(src, dst, 3)
+	if unchanged != 0 {
+		t.Fatalf("unchanged = %d, want 0", unchanged)
+	}
+	if len(plan) != 1 {
+		t.Fatalf("plan length = %d, want 1", len(plan))
 	}
 }
 

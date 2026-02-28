@@ -12,15 +12,16 @@ const (
 )
 
 type Config struct {
-	BaseURL   string
-	Token     string
-	SrcDir    string
-	DstDir    string
-	Blacklist []string
-	PerPage   int
-	Timeout   time.Duration
-	DryRun    bool
-	Logger    *Logger
+	BaseURL     string
+	Token       string
+	SrcDir      string
+	DstDir      string
+	Blacklist   []string
+	MinSizeDiff int64
+	PerPage     int
+	Timeout     time.Duration
+	DryRun      bool
+	Logger      *Logger
 }
 
 func normalizeConfig(cfg Config) (Config, error) {
@@ -37,6 +38,9 @@ func normalizeConfig(cfg Config) (Config, error) {
 
 	if cfg.PerPage < 0 {
 		return Config{}, fmt.Errorf("per_page must be >= 0")
+	}
+	if cfg.MinSizeDiff < 0 {
+		return Config{}, fmt.Errorf("min_size_diff must be >= 0")
 	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = defaultTimeout

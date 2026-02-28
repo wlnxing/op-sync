@@ -19,6 +19,7 @@ type cliConfig struct {
 	srcDir      string
 	dstDir      string
 	excludes    []string
+	minSizeDiff int64
 	logLevelStr string
 	logLevel    openlistsync.LogLevel
 	perPage     int
@@ -27,15 +28,17 @@ type cliConfig struct {
 }
 
 type jsonConfig struct {
-	BaseURL   *string   `json:"base_url"`
-	TokenFile *string   `json:"token_file"`
-	SrcDir    *string   `json:"src"`
-	DstDir    *string   `json:"dst"`
-	Blacklist *[]string `json:"blacklist"`
-	LogLevel  *string   `json:"log_level"`
-	PerPage   *int      `json:"per_page"`
-	Timeout   *string   `json:"timeout"`
-	DryRun    *bool     `json:"dry_run"`
+	BaseURL           *string   `json:"base_url"`
+	TokenFile         *string   `json:"token_file"`
+	SrcDir            *string   `json:"src"`
+	DstDir            *string   `json:"dst"`
+	Blacklist         *[]string `json:"blacklist"`
+	MinSizeDiff       *int64    `json:"min_size_diff"`
+	SizeDiffThreshold *int64    `json:"size_diff_threshold"` // backward compatible
+	LogLevel          *string   `json:"log_level"`
+	PerPage           *int      `json:"per_page"`
+	Timeout           *string   `json:"timeout"`
+	DryRun            *bool     `json:"dry_run"`
 }
 
 func defaultCLIConfig() cliConfig {
@@ -61,15 +64,16 @@ func main() {
 	}
 
 	runCfg := openlistsync.Config{
-		BaseURL:   cfg.baseURL,
-		Token:     token,
-		SrcDir:    cfg.srcDir,
-		DstDir:    cfg.dstDir,
-		Blacklist: cfg.excludes,
-		PerPage:   cfg.perPage,
-		Timeout:   cfg.timeout,
-		DryRun:    cfg.dryRun,
-		Logger:    openlistsync.NewLogger(os.Stdout, cfg.logLevel),
+		BaseURL:     cfg.baseURL,
+		Token:       token,
+		SrcDir:      cfg.srcDir,
+		DstDir:      cfg.dstDir,
+		Blacklist:   cfg.excludes,
+		MinSizeDiff: cfg.minSizeDiff,
+		PerPage:     cfg.perPage,
+		Timeout:     cfg.timeout,
+		DryRun:      cfg.dryRun,
+		Logger:      openlistsync.NewLogger(os.Stdout, cfg.logLevel),
 	}
 	if err := openlistsync.Run(context.Background(), runCfg); err != nil {
 		exitWithErr(1, err)
@@ -101,6 +105,7 @@ func parseFlags() (cliConfig, error) {
 	})
 	flag.StringVar(&cfg.logLevelStr, "log-level", cfg.logLevelStr, "log level: debug, info, error")
 	flag.IntVar(&cfg.perPage, "per-page", cfg.perPage, "list API page size")
+	flag.Int64Var(&cfg.minSizeDiff, "min-size-diff", cfg.minSizeDiff, "copy only when src-dst size diff is >= this value (bytes)")
 	flag.DurationVar(&cfg.timeout, "timeout", cfg.timeout, "HTTP timeout")
 	flag.BoolVar(&cfg.dryRun, "dry-run", cfg.dryRun, "plan only, do not submit copy")
 	flag.Parse()
@@ -112,6 +117,9 @@ func parseFlags() (cliConfig, error) {
 	}
 	if cfg.perPage < 0 {
 		return cliConfig{}, fmt.Errorf("-per-page must be >= 0")
+	}
+	if cfg.minSizeDiff < 0 {
+		return cliConfig{}, fmt.Errorf("-min-size-diff must be >= 0")
 	}
 	lv, err := openlistsync.ParseLogLevel(cfg.logLevelStr)
 	if err != nil {
@@ -198,6 +206,11 @@ func loadJSONConfig(configPath string, cfg *cliConfig) error {
 	}
 	if jc.Blacklist != nil {
 		cfg.excludes = append([]string(nil), *jc.Blacklist...)
+	}
+	if jc.MinSizeDiff != nil {
+		cfg.minSizeDiff = *jc.MinSizeDiff
+	} else if jc.SizeDiffThreshold != nil {
+		cfg.minSizeDiff = *jc.SizeDiffThreshold
 	}
 	if jc.LogLevel != nil {
 		cfg.logLevelStr = *jc.LogLevel
