@@ -26,14 +26,20 @@ jobs:
         run: |
           set -euo pipefail
           APP_NAME="openlist-sync"
-          BIN_NAME="${APP_NAME}"
-          TARGETS="darwin/arm64 linux/amd64 linux/arm64"
+          TARGETS="darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64"
 
           mkdir -p dist package
           for target in $TARGETS; do
             GOOS="${target%/*}"
             GOARCH="${target#*/}"
             PKG_NAME="${APP_NAME}-${GOOS}-${GOARCH}"
+            BIN_NAME="${APP_NAME}"
+            ARCHIVE_EXT="tar.gz"
+
+            if [ "$GOOS" = "windows" ]; then
+              BIN_NAME="${APP_NAME}.exe"
+              ARCHIVE_EXT="zip"
+            fi
 
             mkdir -p "package/${PKG_NAME}"
             CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -trimpath -o "package/${PKG_NAME}/${BIN_NAME}" ./cmd/openlist-sync
@@ -41,11 +47,17 @@ jobs:
             cp config.example.json "package/${PKG_NAME}/config.example.json"
             cp token.example.txt "package/${PKG_NAME}/token.example.txt"
 
-            tar -C package -czf "dist/${PKG_NAME}.tar.gz" "${PKG_NAME}"
+            if [ "$ARCHIVE_EXT" = "zip" ]; then
+              (cd package && zip -rq "../dist/${PKG_NAME}.zip" "${PKG_NAME}")
+            else
+              tar -C package -czf "dist/${PKG_NAME}.tar.gz" "${PKG_NAME}"
+            fi
           done
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          files: dist/*.tar.gz
+          files: |
+            dist/*.tar.gz
+            dist/*.zip

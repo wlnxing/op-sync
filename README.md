@@ -112,6 +112,6 @@ chmod +x ./openlist-sync
 # 本机构建
 make build
 
-# 交叉编译（mac arm64, linux amd64, linux arm64）
+# 交叉编译（mac arm64, linux amd64/arm64, windows amd64/arm64）
 make cross
 ```
