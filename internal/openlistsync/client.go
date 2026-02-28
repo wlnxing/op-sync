@@ -65,7 +65,7 @@ func newAPIClient(cfg Config) *apiClient {
 
 func (c *apiClient) listUndoneCopyTasks(ctx context.Context) ([]taskInfo, error) {
 	var tasks []taskInfo
-	if err := c.requestJSON(ctx, http.MethodGet, "/api/admin/task/copy/undone", nil, &tasks); err != nil {
+	if err := c.requestJSON(ctx, http.MethodGet, "/api/task/copy/undone", nil, &tasks); err != nil {
 		return nil, err
 	}
 	if tasks == nil {
