@@ -34,8 +34,9 @@ func Run(ctx context.Context, cfg Config) error {
 	if filter.count() > 0 {
 		cfg.Logger.Infof("blacklist enabled with %d pattern(s)", filter.count())
 	}
+	minSizeDiffBytes := cfg.MinSizeDiff * 1024
 	if cfg.MinSizeDiff > 0 {
-		cfg.Logger.Infof("min size diff enabled: %d bytes", cfg.MinSizeDiff)
+		cfg.Logger.Infof("min size diff enabled: %d KiB (%d bytes)", cfg.MinSizeDiff, minSizeDiffBytes)
 	}
 
 	cfg.Logger.Infof("scan source: %s", cfg.SrcDir)
@@ -64,7 +65,7 @@ func Run(ctx context.Context, cfg Config) error {
 		}
 	}
 
-	plan, unchanged := buildPlan(srcSnap.Files, dstSnap.Files, cfg.MinSizeDiff)
+	plan, unchanged := buildPlan(srcSnap.Files, dstSnap.Files, minSizeDiffBytes)
 	cfg.Logger.Infof("source files: %d, target files: %d", len(srcSnap.Files), len(dstSnap.Files))
 	cfg.Logger.Infof("to copy: %d, unchanged/skipped: %d", len(plan), unchanged)
 

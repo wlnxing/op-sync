@@ -27,6 +27,8 @@ type cliConfig struct {
 	dryRun      bool
 }
 
+const bytesPerKiB int64 = 1024
+
 type jsonConfig struct {
 	BaseURL           *string   `json:"base_url"`
 	TokenFile         *string   `json:"token_file"`
@@ -34,7 +36,7 @@ type jsonConfig struct {
 	DstDir            *string   `json:"dst"`
 	Blacklist         *[]string `json:"blacklist"`
 	MinSizeDiff       *int64    `json:"min_size_diff"`
-	SizeDiffThreshold *int64    `json:"size_diff_threshold"` // backward compatible
+	SizeDiffThreshold *int64    `json:"size_diff_threshold"` // backward compatible (bytes)
 	LogLevel          *string   `json:"log_level"`
 	PerPage           *int      `json:"per_page"`
 	Timeout           *string   `json:"timeout"`
@@ -105,7 +107,7 @@ func parseFlags() (cliConfig, error) {
 	})
 	flag.StringVar(&cfg.logLevelStr, "log-level", cfg.logLevelStr, "log level: debug, info, error")
 	flag.IntVar(&cfg.perPage, "per-page", cfg.perPage, "list API page size")
-	flag.Int64Var(&cfg.minSizeDiff, "min-size-diff", cfg.minSizeDiff, "copy only when src-dst size diff is >= this value (bytes)")
+	flag.Int64Var(&cfg.minSizeDiff, "min-size-diff", cfg.minSizeDiff, "copy only when src-dst size diff is >= this value (KiB)")
 	flag.DurationVar(&cfg.timeout, "timeout", cfg.timeout, "HTTP timeout")
 	flag.BoolVar(&cfg.dryRun, "dry-run", cfg.dryRun, "plan only, do not submit copy")
 	flag.Parse()
@@ -210,7 +212,7 @@ func loadJSONConfig(configPath string, cfg *cliConfig) error {
 	if jc.MinSizeDiff != nil {
 		cfg.minSizeDiff = *jc.MinSizeDiff
 	} else if jc.SizeDiffThreshold != nil {
-		cfg.minSizeDiff = *jc.SizeDiffThreshold
+		cfg.minSizeDiff = bytesToKiBCeil(*jc.SizeDiffThreshold)
 	}
 	if jc.LogLevel != nil {
 		cfg.logLevelStr = *jc.LogLevel
@@ -229,6 +231,17 @@ func loadJSONConfig(configPath string, cfg *cliConfig) error {
 		cfg.dryRun = *jc.DryRun
 	}
 	return nil
+}
+
+func bytesToKiBCeil(v int64) int64 {
+	if v <= 0 {
+		return 0
+	}
+	kib := v / bytesPerKiB
+	if v%bytesPerKiB != 0 {
+		kib++
+	}
+	return kib
 }
 
 func readToken(tokenFile string) (string, error) {
