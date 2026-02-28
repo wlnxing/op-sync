@@ -125,3 +125,23 @@ func TestPathFilterInvalidPattern(t *testing.T) {
 		t.Fatalf("expected invalid pattern error")
 	}
 }
+
+func TestBuildWantTaskKeysWithBasePath(t *testing.T) {
+	keys := buildWantTaskKeys("/src/file.txt", "/dst", "/root")
+	if _, ok := keys["/src/file.txt->/dst"]; !ok {
+		t.Fatalf("missing user-view key")
+	}
+	if _, ok := keys["/root/src/file.txt->/root/dst"]; !ok {
+		t.Fatalf("missing root-view key")
+	}
+}
+
+func TestBuildWantTaskKeysWithRootBasePath(t *testing.T) {
+	keys := buildWantTaskKeys("/src/file.txt", "/dst", "/")
+	if len(keys) != 1 {
+		t.Fatalf("keys length = %d, want 1", len(keys))
+	}
+	if _, ok := keys["/src/file.txt->/dst"]; !ok {
+		t.Fatalf("missing user-view key")
+	}
+}

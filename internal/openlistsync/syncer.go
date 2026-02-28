@@ -88,6 +88,13 @@ func Run(ctx context.Context, cfg Config) error {
 	knownDstDirs[cfg.DstDir] = struct{}{}
 
 	var submitted, skippedDup, failed int
+	userBasePath := "/"
+	if v, err := c.getCurrentUserBasePath(ctx); err != nil {
+		cfg.Logger.Debugf("get current user base_path failed, fallback to /: %v", err)
+	} else {
+		userBasePath = v
+		cfg.Logger.Debugf("current user base_path: %s", userBasePath)
+	}
 
 	for _, item := range plan {
 		srcFile := joinRootWithRel(cfg.SrcDir, item.RelPath)
@@ -100,7 +107,7 @@ func Run(ctx context.Context, cfg Config) error {
 			continue
 		}
 
-		hasSameTask, err := c.hasSameUndoneCopyTask(ctx, srcFile, dstParent)
+		hasSameTask, err := c.hasSameUndoneCopyTask(ctx, srcFile, dstParent, userBasePath)
 		if err != nil {
 			failed++
 			cfg.Logger.Errorf("check undone task failed %s -> %s: %v", srcFile, dstParent, err)

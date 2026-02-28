@@ -11,23 +11,41 @@ var copyTaskNameRe = regexp.MustCompile(`^copy \[(.+)\]\((.+)\) to \[(.+)\]\((.+
 
 // hasSameUndoneCopyTask 检查 OpenList 未完成复制任务中是否已存在等价任务，
 // 用于避免重复提交。
-func (c *apiClient) hasSameUndoneCopyTask(ctx context.Context, srcFile, dstDir string) (bool, error) {
+func (c *apiClient) hasSameUndoneCopyTask(ctx context.Context, srcFile, dstDir, userBasePath string) (bool, error) {
 	tasks, err := c.listUndoneCopyTasks(ctx)
 	if err != nil {
 		return false, err
 	}
 
-	wantKey := buildTaskKey(srcFile, dstDir)
+	wantKeys := buildWantTaskKeys(srcFile, dstDir, userBasePath)
 	for _, t := range tasks {
 		key, ok := parseCopyTaskKey(t.Name)
 		if !ok {
 			continue
 		}
-		if key == wantKey {
+		if _, ok := wantKeys[key]; ok {
 			return true, nil
 		}
 	}
 	return false, nil
+}
+
+// buildWantTaskKeys 构造待匹配任务 key：
+// 1) 用户视角路径（配置里的 src/dst）
+// 2) root 视角路径（拼上当前用户 base_path）
+func buildWantTaskKeys(srcFile, dstDir, userBasePath string) map[string]struct{} {
+	keys := map[string]struct{}{
+		buildTaskKey(srcFile, dstDir): {},
+	}
+
+	base := normalizeOLPath(userBasePath)
+	if base == "/" {
+		return keys
+	}
+	srcWithBase := applyBasePath(base, srcFile)
+	dstWithBase := applyBasePath(base, dstDir)
+	keys[buildTaskKey(srcWithBase, dstWithBase)] = struct{}{}
+	return keys
 }
 
 // parseCopyTaskKey 解析 OpenList 复制任务名：
@@ -66,4 +84,17 @@ func joinMountAndActual(mountPath, actualPath string) string {
 		return mountPath
 	}
 	return normalizeOLPath(strings.TrimSuffix(mountPath, "/") + "/" + strings.TrimPrefix(actualPath, "/"))
+}
+
+func applyBasePath(basePath, p string) string {
+	basePath = normalizeOLPath(basePath)
+	p = normalizeOLPath(p)
+	if basePath == "/" {
+		return p
+	}
+
+	if p == basePath || strings.HasPrefix(p, basePath+"/") {
+		return p
+	}
+	return normalizeOLPath(path.Join(basePath, strings.TrimPrefix(p, "/")))
 }

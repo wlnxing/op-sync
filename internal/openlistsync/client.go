@@ -38,6 +38,10 @@ type taskInfo struct {
 	Name string `json:"name"`
 }
 
+type currentUserInfo struct {
+	BasePath string `json:"base_path"`
+}
+
 type copyReq struct {
 	SrcDir       string   `json:"src_dir"`
 	DstDir       string   `json:"dst_dir"`
@@ -72,6 +76,14 @@ func (c *apiClient) listUndoneCopyTasks(ctx context.Context) ([]taskInfo, error)
 		return []taskInfo{}, nil
 	}
 	return tasks, nil
+}
+
+func (c *apiClient) getCurrentUserBasePath(ctx context.Context) (string, error) {
+	var user currentUserInfo
+	if err := c.requestJSON(ctx, http.MethodGet, "/api/me", nil, &user); err != nil {
+		return "", err
+	}
+	return normalizeOLPath(user.BasePath), nil
 }
 
 func (c *apiClient) copyFile(ctx context.Context, srcDir, dstDir, name string, overwrite bool) error {
