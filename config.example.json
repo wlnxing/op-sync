@@ -10,6 +10,7 @@
   ],
   "min_size_diff": 0,
   "log_level": "info",
+  "crontab": "",
   "per_page": 0,
   "timeout": "30s",
   "dry_run": false

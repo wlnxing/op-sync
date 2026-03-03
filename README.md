@@ -64,6 +64,9 @@ chmod +x ./openlist-sync
 
 # 先预览，不真正复制
 ./openlist-sync --config ./config.json -dry-run -log-level info
+
+# 持续运行：每 30 分钟执行一次（启动后会先执行一次）
+./openlist-sync --config ./config.json -crontab "*/30 * * * *"
 ```
 
 ## 配置文件示例
@@ -81,6 +84,7 @@ chmod +x ./openlist-sync
   ],
   "min_size_diff": 0,
   "log_level": "info",
+  "crontab": "",
   "per_page": 0,
   "timeout": "30s",
   "dry_run": false
@@ -97,12 +101,15 @@ chmod +x ./openlist-sync
 - `-exclude`：黑名单通配符，可重复传，或用逗号分隔
 - `-dry-run`：只看计划，不执行复制
 - `-log-level`：`debug | info | error`，默认 `info`
+- `-crontab`：按 crontab 表达式持续运行（5 段：分 时 日 月 周），例如 `*/30 * * * *`
 - `-min-size-diff`：仅当 `源文件大小-目标文件大小` 大于等于该值时才复制（单位：KiB）
 - `-per-page`：列表分页，默认 `0`（让 OpenList 返回目录全部文件）
 - `-timeout`：单次 API 请求超时，默认 `30s`
 
 说明：
 - 参数优先级：`命令行 > config.json > 默认值`
+- `crontab` 为空时只执行一次；有值时首次会立即执行一次，之后按计划重复执行
+- `crontab` 模式为串行执行：若上一次还没结束，不会并发启动下一次；错过的触发点不会补跑
 - `min_size_diff` 单位是 KiB，例如填 `100` 表示 `100 KiB`（102400 字节）
 - `debug` 会显示每个文件的详细计划
 - 黑名单规则：

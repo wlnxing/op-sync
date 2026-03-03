@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"op-sync/internal/openlistsync"
@@ -25,6 +27,7 @@ type cliConfig struct {
 	perPage     int
 	timeout     time.Duration
 	dryRun      bool
+	crontab     string
 }
 
 const bytesPerKiB int64 = 1024
@@ -41,6 +44,7 @@ type jsonConfig struct {
 	PerPage           *int      `json:"per_page"`
 	Timeout           *string   `json:"timeout"`
 	DryRun            *bool     `json:"dry_run"`
+	Crontab           *string   `json:"crontab"`
 }
 
 func defaultCLIConfig() cliConfig {
@@ -65,6 +69,10 @@ func main() {
 		exitWithErr(2, fmt.Errorf("read token failed: %w", err))
 	}
 
+	runCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	logger := openlistsync.NewLogger(os.Stdout, cfg.logLevel)
 	runCfg := openlistsync.Config{
 		BaseURL:     cfg.baseURL,
 		Token:       token,
@@ -75,10 +83,53 @@ func main() {
 		PerPage:     cfg.perPage,
 		Timeout:     cfg.timeout,
 		DryRun:      cfg.dryRun,
-		Logger:      openlistsync.NewLogger(os.Stdout, cfg.logLevel),
+		Logger:      logger,
 	}
-	if err := openlistsync.Run(context.Background(), runCfg); err != nil {
-		exitWithErr(1, err)
+
+	if strings.TrimSpace(cfg.crontab) == "" {
+		if err := openlistsync.Run(runCtx, runCfg); err != nil {
+			exitWithErr(1, err)
+		}
+		return
+	}
+
+	schedule, err := openlistsync.ParseCrontab(cfg.crontab)
+	if err != nil {
+		exitWithErr(2, fmt.Errorf("invalid -crontab: %w", err))
+	}
+	logger.Infof("crontab mode enabled: %s", schedule.Expr())
+
+	runOnce := func() {
+		startAt := time.Now()
+		logger.Infof("scheduled run start: %s", startAt.Format(time.RFC3339))
+		if err := openlistsync.Run(runCtx, runCfg); err != nil {
+			logger.Errorf("scheduled run failed: %v", err)
+		} else {
+			logger.Infof("scheduled run finished")
+		}
+	}
+
+	runOnce()
+	for {
+		next, err := schedule.Next(time.Now())
+		if err != nil {
+			exitWithErr(1, fmt.Errorf("calculate next schedule failed: %w", err))
+		}
+		wait := time.Until(next)
+		if wait < 0 {
+			wait = 0
+		}
+		logger.Infof("next run at: %s", next.Format(time.RFC3339))
+
+		timer := time.NewTimer(wait)
+		select {
+		case <-timer.C:
+			runOnce()
+		case <-runCtx.Done():
+			timer.Stop()
+			logger.Infof("received stop signal, exit")
+			return
+		}
 	}
 }
 
@@ -110,6 +161,7 @@ func parseFlags() (cliConfig, error) {
 	flag.Int64Var(&cfg.minSizeDiff, "min-size-diff", cfg.minSizeDiff, "copy only when src-dst size diff is >= this value (KiB)")
 	flag.DurationVar(&cfg.timeout, "timeout", cfg.timeout, "HTTP timeout")
 	flag.BoolVar(&cfg.dryRun, "dry-run", cfg.dryRun, "plan only, do not submit copy")
+	flag.StringVar(&cfg.crontab, "crontab", cfg.crontab, "run continuously by cron expression (5 fields, e.g. */30 * * * *)")
 	flag.Parse()
 
 	cfg.srcDir = strings.TrimSpace(cfg.srcDir)
@@ -122,6 +174,12 @@ func parseFlags() (cliConfig, error) {
 	}
 	if cfg.minSizeDiff < 0 {
 		return cliConfig{}, fmt.Errorf("-min-size-diff must be >= 0")
+	}
+	cfg.crontab = strings.TrimSpace(cfg.crontab)
+	if cfg.crontab != "" {
+		if _, err := openlistsync.ParseCrontab(cfg.crontab); err != nil {
+			return cliConfig{}, fmt.Errorf("invalid -crontab: %w", err)
+		}
 	}
 	lv, err := openlistsync.ParseLogLevel(cfg.logLevelStr)
 	if err != nil {
@@ -229,6 +287,9 @@ func loadJSONConfig(configPath string, cfg *cliConfig) error {
 	}
 	if jc.DryRun != nil {
 		cfg.dryRun = *jc.DryRun
+	}
+	if jc.Crontab != nil {
+		cfg.crontab = strings.TrimSpace(*jc.Crontab)
 	}
 	return nil
 }
