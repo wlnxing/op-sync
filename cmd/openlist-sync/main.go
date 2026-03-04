@@ -66,30 +66,16 @@ func main() {
 		exitWithErr(2, err)
 	}
 
-	token, err := readToken(cfg.tokenFile)
-	if err != nil {
-		exitWithErr(2, fmt.Errorf("read token failed: %w", err))
-	}
-
 	runCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	logger := openlistsync.NewLogger(os.Stdout, cfg.logLevel)
-	runCfg := openlistsync.Config{
-		BaseURL:     cfg.baseURL,
-		Token:       token,
-		SrcDir:      cfg.srcDir,
-		DstDir:      cfg.dstDir,
-		OutputDir:   cfg.outputDir,
-		Blacklist:   cfg.excludes,
-		MinSizeDiff: cfg.minSizeDiff,
-		PerPage:     cfg.perPage,
-		Timeout:     cfg.timeout,
-		DryRun:      cfg.dryRun,
-		Logger:      logger,
-	}
 
 	if strings.TrimSpace(cfg.crontab) == "" {
+		runCfg, err := buildRunConfig(cfg, logger)
+		if err != nil {
+			exitWithErr(2, err)
+		}
 		if err := openlistsync.Run(runCtx, runCfg); err != nil {
 			exitWithErr(1, err)
 		}
@@ -105,6 +91,11 @@ func main() {
 	runOnce := func() {
 		startAt := time.Now()
 		logger.Infof("scheduled run start: %s", startAt.Format(time.RFC3339))
+		runCfg, err := buildRunConfig(cfg, logger)
+		if err != nil {
+			logger.Errorf("scheduled run skipped: %v", err)
+			return
+		}
 		if err := openlistsync.Run(runCtx, runCfg); err != nil {
 			logger.Errorf("scheduled run failed: %v", err)
 		} else {
@@ -134,6 +125,26 @@ func main() {
 			return
 		}
 	}
+}
+
+func buildRunConfig(cfg cliConfig, logger *openlistsync.Logger) (openlistsync.Config, error) {
+	token, err := readToken(cfg.tokenFile)
+	if err != nil {
+		return openlistsync.Config{}, fmt.Errorf("read token failed: %w", err)
+	}
+	return openlistsync.Config{
+		BaseURL:     cfg.baseURL,
+		Token:       token,
+		SrcDir:      cfg.srcDir,
+		DstDir:      cfg.dstDir,
+		OutputDir:   cfg.outputDir,
+		Blacklist:   cfg.excludes,
+		MinSizeDiff: cfg.minSizeDiff,
+		PerPage:     cfg.perPage,
+		Timeout:     cfg.timeout,
+		DryRun:      cfg.dryRun,
+		Logger:      logger,
+	}, nil
 }
 
 func parseFlags() (cliConfig, error) {
