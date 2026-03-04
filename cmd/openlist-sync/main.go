@@ -20,6 +20,7 @@ type cliConfig struct {
 	tokenFile   string
 	srcDir      string
 	dstDir      string
+	outputDir   string
 	excludes    []string
 	minSizeDiff int64
 	logLevelStr string
@@ -37,6 +38,7 @@ type jsonConfig struct {
 	TokenFile         *string   `json:"token_file"`
 	SrcDir            *string   `json:"src"`
 	DstDir            *string   `json:"dst"`
+	OutputDir         *string   `json:"output"`
 	Blacklist         *[]string `json:"blacklist"`
 	MinSizeDiff       *int64    `json:"min_size_diff"`
 	SizeDiffThreshold *int64    `json:"size_diff_threshold"` // backward compatible (bytes)
@@ -78,6 +80,7 @@ func main() {
 		Token:       token,
 		SrcDir:      cfg.srcDir,
 		DstDir:      cfg.dstDir,
+		OutputDir:   cfg.outputDir,
 		Blacklist:   cfg.excludes,
 		MinSizeDiff: cfg.minSizeDiff,
 		PerPage:     cfg.perPage,
@@ -152,6 +155,7 @@ func parseFlags() (cliConfig, error) {
 	flag.StringVar(&cfg.tokenFile, "token-file", cfg.tokenFile, "path to token file")
 	flag.StringVar(&cfg.srcDir, "src", cfg.srcDir, "source directory path in OpenList")
 	flag.StringVar(&cfg.dstDir, "dst", cfg.dstDir, "destination directory path in OpenList")
+	flag.StringVar(&cfg.outputDir, "output", cfg.outputDir, "actual copy destination path in OpenList (defaults to -dst)")
 	flag.Func("exclude", "blacklist wildcard pattern, repeatable or comma-separated", func(v string) error {
 		cfg.excludes = append(cfg.excludes, splitPatterns(v)...)
 		return nil
@@ -166,6 +170,7 @@ func parseFlags() (cliConfig, error) {
 
 	cfg.srcDir = strings.TrimSpace(cfg.srcDir)
 	cfg.dstDir = strings.TrimSpace(cfg.dstDir)
+	cfg.outputDir = strings.TrimSpace(cfg.outputDir)
 	if cfg.srcDir == "" || cfg.dstDir == "" {
 		return cliConfig{}, fmt.Errorf("both -src and -dst are required")
 	}
@@ -263,6 +268,9 @@ func loadJSONConfig(configPath string, cfg *cliConfig) error {
 	}
 	if jc.DstDir != nil {
 		cfg.dstDir = *jc.DstDir
+	}
+	if jc.OutputDir != nil {
+		cfg.outputDir = *jc.OutputDir
 	}
 	if jc.Blacklist != nil {
 		cfg.excludes = append([]string(nil), *jc.Blacklist...)

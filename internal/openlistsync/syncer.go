@@ -38,6 +38,9 @@ func Run(ctx context.Context, cfg Config) error {
 	if cfg.MinSizeDiff > 0 {
 		cfg.Logger.Infof("min size diff enabled: %d KiB (%d bytes)", cfg.MinSizeDiff, minSizeDiffBytes)
 	}
+	if cfg.OutputDir != cfg.DstDir {
+		cfg.Logger.Infof("copy output enabled: compare dst=%s, copy output=%s", cfg.DstDir, cfg.OutputDir)
+	}
 
 	cfg.Logger.Infof("scan source: %s", cfg.SrcDir)
 	srcSnap, err := scanTree(ctx, c, cfg.SrcDir, filter, cfg.Logger)
@@ -50,10 +53,14 @@ func Run(ctx context.Context, cfg Config) error {
 	dstSnap, err := scanTree(ctx, c, cfg.DstDir, filter, cfg.Logger)
 	if err != nil {
 		if isNotFoundErr(err) {
-			cfg.Logger.Infof("target dir not found, create: %s", cfg.DstDir)
-			if err := c.mkdir(ctx, cfg.DstDir); err != nil {
-				cfg.Logger.Errorf("create target dir failed: %v", err)
-				return fmt.Errorf("create target dir failed: %w", err)
+			if cfg.OutputDir == cfg.DstDir {
+				cfg.Logger.Infof("target dir not found, create: %s", cfg.DstDir)
+				if err := c.mkdir(ctx, cfg.DstDir); err != nil {
+					cfg.Logger.Errorf("create target dir failed: %v", err)
+					return fmt.Errorf("create target dir failed: %w", err)
+				}
+			} else {
+				cfg.Logger.Infof("compare dst not found, treat as empty: %s", cfg.DstDir)
 			}
 			dstSnap = &treeSnapshot{
 				Files: map[string]int64{},
@@ -81,11 +88,14 @@ func Run(ctx context.Context, cfg Config) error {
 		return nil
 	}
 
-	knownDstDirs := make(map[string]struct{}, len(dstSnap.Dirs)+1)
-	for relDir := range dstSnap.Dirs {
-		knownDstDirs[joinRootWithRel(cfg.DstDir, relDir)] = struct{}{}
+	copyRoot := cfg.OutputDir
+	knownDstDirs := map[string]struct{}{copyRoot: {}}
+	// output 未单独指定时，可复用目标目录快照，减少重复 mkdir
+	if copyRoot == cfg.DstDir {
+		for relDir := range dstSnap.Dirs {
+			knownDstDirs[joinRootWithRel(cfg.DstDir, relDir)] = struct{}{}
+		}
 	}
-	knownDstDirs[cfg.DstDir] = struct{}{}
 
 	var submitted, skippedDup, failed int
 	userBasePath := "/"
@@ -98,36 +108,36 @@ func Run(ctx context.Context, cfg Config) error {
 
 	for _, item := range plan {
 		srcFile := joinRootWithRel(cfg.SrcDir, item.RelPath)
-		dstFile := joinRootWithRel(cfg.DstDir, item.RelPath)
-		dstParent := normalizeOLPath(path.Dir(dstFile))
+		outputFile := joinRootWithRel(copyRoot, item.RelPath)
+		outputParent := normalizeOLPath(path.Dir(outputFile))
 
-		if err := ensureDir(ctx, c, dstParent, knownDstDirs); err != nil {
+		if err := ensureDir(ctx, c, outputParent, knownDstDirs); err != nil {
 			failed++
-			cfg.Logger.Errorf("mkdir failed %s: %v", dstParent, err)
+			cfg.Logger.Errorf("mkdir failed %s: %v", outputParent, err)
 			continue
 		}
 
-		hasSameTask, err := c.hasSameUndoneCopyTask(ctx, srcFile, dstParent, userBasePath)
+		hasSameTask, err := c.hasSameUndoneCopyTask(ctx, srcFile, outputParent, userBasePath)
 		if err != nil {
 			failed++
-			cfg.Logger.Errorf("check undone task failed %s -> %s: %v", srcFile, dstParent, err)
+			cfg.Logger.Errorf("check undone task failed %s -> %s: %v", srcFile, outputParent, err)
 			continue
 		}
 		if hasSameTask {
 			skippedDup++
-			cfg.Logger.Infof("skip duplicate task %s -> %s", srcFile, dstParent)
+			cfg.Logger.Infof("skip duplicate task %s -> %s", srcFile, outputParent)
 			continue
 		}
 
 		srcParent := normalizeOLPath(path.Dir(srcFile))
 		name := path.Base(srcFile)
-		if err := c.copyFile(ctx, srcParent, dstParent, name, true); err != nil {
+		if err := c.copyFile(ctx, srcParent, outputParent, name, true); err != nil {
 			failed++
-			cfg.Logger.Errorf("copy failed %s -> %s: %v", srcFile, dstParent, err)
+			cfg.Logger.Errorf("copy failed %s -> %s: %v", srcFile, outputParent, err)
 			continue
 		}
 		submitted++
-		cfg.Logger.Infof("copy %s -> %s (%s)", srcFile, dstParent, item.Reason)
+		cfg.Logger.Infof("copy %s -> %s (%s)", srcFile, outputParent, item.Reason)
 	}
 
 	cfg.Logger.Infof("done: submitted=%d skipped_duplicate_task=%d failed=%d", submitted, skippedDup, failed)

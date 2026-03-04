@@ -3,6 +3,7 @@
   "token_file": "token.txt",
   "src": "/test/source",
   "dst": "/test/target",
+  "output": "",
   "blacklist": [
     "*.tmp",
     ".DS_Store",

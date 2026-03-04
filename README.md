@@ -44,7 +44,8 @@ cp token.example.txt token.txt
 4. 编辑 `config.json`，至少确认以下字段：
 - `base_url`：OpenList 地址
 - `src`：源目录
-- `dst`：目标目录
+- `dst`：对比目录
+- `output`：实际复制目录（可选，不填默认等于 `dst`）
 
 5. 在 `token.txt` 中填入 OpenList token，然后执行：
 
@@ -77,6 +78,7 @@ chmod +x ./openlist-sync
   "token_file": "token.txt",
   "src": "/test/source",
   "dst": "/test/target",
+  "output": "",
   "blacklist": [
     "*.tmp",
     ".DS_Store",
@@ -95,7 +97,8 @@ chmod +x ./openlist-sync
 
 - `--config`：配置文件路径，默认 `./config.json`
 - `-src`：源目录
-- `-dst`：目标目录
+- `-dst`：对比目录
+- `-output`：实际复制目录，默认等于 `-dst`
 - `-base-url`：OpenList 地址，默认 `http://localhost:35244`
 - `-token-file`：token 文件路径，默认 `token.txt`
 - `-exclude`：黑名单通配符，可重复传，或用逗号分隔
@@ -108,6 +111,8 @@ chmod +x ./openlist-sync
 
 说明：
 - 参数优先级：`命令行 > config.json > 默认值`
+- `dst` 用于比对；`output`（若设置）用于实际提交复制任务
+- 设置了 `output` 时，`dst` 仅用于比对；即使 `dst` 不存在也不会自动创建
 - `crontab` 为空时只执行一次；有值时首次会立即执行一次，之后按计划重复执行
 - `crontab` 模式为串行执行：若上一次还没结束，不会并发启动下一次；错过的触发点不会补跑
 - `min_size_diff` 单位是 KiB，例如填 `100` 表示 `100 KiB`（102400 字节）

@@ -16,6 +16,7 @@ type Config struct {
 	Token       string
 	SrcDir      string
 	DstDir      string
+	OutputDir   string
 	Blacklist   []string
 	MinSizeDiff int64
 	PerPage     int
@@ -35,6 +36,10 @@ func normalizeConfig(cfg Config) (Config, error) {
 	if cfg.SrcDir == "" || cfg.DstDir == "" {
 		return Config{}, fmt.Errorf("both src and dst are required")
 	}
+	cfg.OutputDir = strings.TrimSpace(cfg.OutputDir)
+	if cfg.OutputDir == "" {
+		cfg.OutputDir = cfg.DstDir
+	}
 
 	if cfg.PerPage < 0 {
 		return Config{}, fmt.Errorf("per_page must be >= 0")
@@ -52,6 +57,7 @@ func normalizeConfig(cfg Config) (Config, error) {
 	cfg.BaseURL = normalizeBaseURL(cfg.BaseURL)
 	cfg.SrcDir = normalizeOLPath(cfg.SrcDir)
 	cfg.DstDir = normalizeOLPath(cfg.DstDir)
+	cfg.OutputDir = normalizeOLPath(cfg.OutputDir)
 	cfg.Blacklist = normalizePatterns(cfg.Blacklist)
 	return cfg, nil
 }
