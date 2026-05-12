@@ -70,6 +70,42 @@ chmod +x ./openlist-sync
 ./openlist-sync --config ./config.json -crontab "*/30 * * * *"
 ```
 
+## Docker
+
+Docker 构建镜像：
+
+```bash
+make image
+
+# 等价于：
+docker build -t op-sync:latest .
+```
+
+准备运行配置：
+
+```bash
+cp config.example.json config.json
+cp token.example.txt token.txt
+```
+
+容器默认工作目录是 `/config`，因此示例配置里的 `"token_file": "token.txt"` 可以保持不变。运行时挂载配置和 token：
+
+```bash
+docker run --rm \
+  -v "$PWD/config.json:/config/config.json:ro" \
+  -v "$PWD/token.txt:/config/token.txt:ro" \
+  op-sync:latest
+```
+
+也可以在镜像名后继续传命令行参数：
+
+```bash
+docker run --rm \
+  -v "$PWD/config.json:/config/config.json:ro" \
+  -v "$PWD/token.txt:/config/token.txt:ro" \
+  op-sync:latest -dry-run -log-level debug
+```
+
 ## 配置文件示例
 
 ```json

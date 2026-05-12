@@ -2,13 +2,15 @@ APP_NAME := openlist-sync
 CMD_PATH := ./cmd/openlist-sync
 BIN_DIR := bin
 DIST_DIR := dist
+IMAGE ?= op-sync:latest
 
-.PHONY: help build clean cross darwin-arm64 linux-amd64 linux-arm64 windows-amd64 windows-arm64
+.PHONY: help build clean cross image darwin-arm64 linux-amd64 linux-arm64 windows-amd64 windows-arm64
 
 help:
 	@echo "Targets:"
 	@echo "  make build         Build local binary to $(BIN_DIR)/$(APP_NAME)"
 	@echo "  make cross         Cross-build: darwin/arm64, linux/amd64, linux/arm64, windows/amd64, windows/arm64"
+	@echo "  make image         Build container image as $(IMAGE)"
 	@echo "  make clean         Remove build artifacts"
 
 build:
@@ -16,6 +18,9 @@ build:
 	CGO_ENABLED=0 go build -trimpath -o $(BIN_DIR)/$(APP_NAME) $(CMD_PATH)
 
 cross: darwin-arm64 linux-amd64 linux-arm64 windows-amd64 windows-arm64
+
+image:
+	docker build -t $(IMAGE) .
 
 darwin-arm64:
 	@mkdir -p $(DIST_DIR)
