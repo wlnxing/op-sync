@@ -1,0 +1,8 @@
+services:
+  op-sync:
+    image: ghcr.io/wlnxing/op-sync:latest
+    container_name: op-sync
+    user: "0:0"
+    volumes:
+      - ./config.json:/config/config.json
+      - ./token.txt:/config/token.txt
