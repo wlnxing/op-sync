@@ -47,7 +47,9 @@ cp token.example.txt token.txt
 - `dst`：对比目录
 - `output`：实际复制目录（可选，不填默认等于 `dst`）
 
-5. 在 `token.txt` 中填入 OpenList token，然后执行：
+5. 在 `token.txt` 中填入 OpenList token；也可以使用 [OpenList 登录脚本](docs/openlist-login.md) 进行用户登录并写入用户的 token。然后执行：
+
+> 推荐使用用户token的方式. 如果需要长期执行, 可以使用crontab跑一个定时任务来更新token文件, 程序每次运行任务都会重新读取token以及配置文件
 
 ```bash
 chmod +x ./openlist-sync
