@@ -70,6 +70,9 @@ chmod +x ./openlist-sync
 
 # 持续运行：每 30 分钟执行一次（启动后会先执行一次）
 ./openlist-sync --config ./config.json -crontab "*/30 * * * *"
+
+# 持续运行：每 30 分钟执行一次，但启动时不立即执行
+./openlist-sync --config ./config.json -crontab "*/30 * * * *" -run-on-start=false
 ```
 
 ## Docker
@@ -125,6 +128,7 @@ docker run --rm \
   "min_size_diff": 0,
   "log_level": "info",
   "crontab": "",
+  "run_on_start": true,
   "per_page": 0,
   "timeout": "30s",
   "dry_run": false
@@ -143,6 +147,7 @@ docker run --rm \
 - `-dry-run`：只看计划，不执行复制
 - `-log-level`：`debug | info | error`，默认 `info`
 - `-crontab`：按 crontab 表达式持续运行（5 段：分 时 日 月 周），例如 `*/30 * * * *`
+- `-run-on-start`：`crontab` 模式启动后是否立即执行一次，默认 `true`
 - `-min-size-diff`：仅当 `源文件大小-目标文件大小` 大于等于该值时才复制（单位：KiB）
 - `-per-page`：列表分页，默认 `0`（让 OpenList 返回目录全部文件）
 - `-timeout`：单次 API 请求超时，默认 `30s`
@@ -151,7 +156,8 @@ docker run --rm \
 - 参数优先级：`命令行 > config.json > 默认值`
 - `dst` 用于比对；`output`（若设置）用于实际提交复制任务
 - 设置了 `output` 时，`dst` 仅用于比对；即使 `dst` 不存在也不会自动创建
-- `crontab` 为空时只执行一次；有值时首次会立即执行一次，之后按计划重复执行
+- `crontab` 为空时只执行一次；有值时按计划重复执行，且默认会在启动后立即执行一次
+- `run_on_start` 仅影响 `crontab` 模式；设为 `false` 时启动后等待下一次计划时间再执行
 - `crontab` 模式为串行执行：若上一次还没结束，不会并发启动下一次；错过的触发点不会补跑
 - `crontab` 模式每次触发前都会重新读取 `token_file`
 - `min_size_diff` 单位是 KiB，例如填 `100` 表示 `100 KiB`（102400 字节）

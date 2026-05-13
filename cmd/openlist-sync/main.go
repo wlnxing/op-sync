@@ -29,6 +29,7 @@ type cliConfig struct {
 	timeout     time.Duration
 	dryRun      bool
 	crontab     string
+	runOnStart  bool
 }
 
 const bytesPerKiB int64 = 1024
@@ -47,6 +48,7 @@ type jsonConfig struct {
 	Timeout           *string   `json:"timeout"`
 	DryRun            *bool     `json:"dry_run"`
 	Crontab           *string   `json:"crontab"`
+	RunOnStart        *bool     `json:"run_on_start"`
 }
 
 func defaultCLIConfig() cliConfig {
@@ -57,6 +59,7 @@ func defaultCLIConfig() cliConfig {
 		logLevelStr: "info",
 		perPage:     openlistsync.DefaultPerPage,
 		timeout:     30 * time.Second,
+		runOnStart:  true,
 	}
 }
 
@@ -103,7 +106,11 @@ func main() {
 		}
 	}
 
-	runOnce()
+	if cfg.runOnStart {
+		runOnce()
+	} else {
+		logger.Infof("run_on_start disabled, skip immediate run")
+	}
 	for {
 		next, err := schedule.Next(time.Now())
 		if err != nil {
@@ -177,6 +184,7 @@ func parseFlags() (cliConfig, error) {
 	flag.DurationVar(&cfg.timeout, "timeout", cfg.timeout, "HTTP timeout")
 	flag.BoolVar(&cfg.dryRun, "dry-run", cfg.dryRun, "plan only, do not submit copy")
 	flag.StringVar(&cfg.crontab, "crontab", cfg.crontab, "run continuously by cron expression (5 fields, e.g. */30 * * * *)")
+	flag.BoolVar(&cfg.runOnStart, "run-on-start", cfg.runOnStart, "run once immediately when crontab mode starts")
 	flag.Parse()
 
 	cfg.srcDir = strings.TrimSpace(cfg.srcDir)
@@ -309,6 +317,9 @@ func loadJSONConfig(configPath string, cfg *cliConfig) error {
 	}
 	if jc.Crontab != nil {
 		cfg.crontab = strings.TrimSpace(*jc.Crontab)
+	}
+	if jc.RunOnStart != nil {
+		cfg.runOnStart = *jc.RunOnStart
 	}
 	return nil
 }

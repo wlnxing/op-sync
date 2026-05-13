@@ -12,6 +12,7 @@
   "min_size_diff": 0,
   "log_level": "info",
   "crontab": "",
+  "run_on_start": true,
   "per_page": 0,
   "timeout": "30s",
   "dry_run": false
